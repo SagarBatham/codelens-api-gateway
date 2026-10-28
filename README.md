@@ -6,7 +6,7 @@ A containerized microservices platform built with **Java, Spring Boot, Spring Cl
 
 CodeLens provides a single entry point for requests to multiple backend services. The gateway handles request routing and authentication, while Redis stores rate-limit state. Separate services manage users, products, and orders, each with its own PostgreSQL database.
 
-### Key Features
+## Key Features
 
 - **Centralized API Gateway:** Route requests to backend microservices through Spring Cloud Gateway.
 - **JWT Authentication:** Validate JWT-based authentication at the gateway.
@@ -16,6 +16,18 @@ CodeLens provides a single entry point for requests to multiple backend services
 - **Microservices Architecture:** Keep user, product, and order functionality in separate services.
 - **Monitoring:** Integrate Spring Boot Actuator and Prometheus metrics.
 - **Interactive Dashboard:** React-based frontend with service status, metrics, and charts.
+
+## Dashboard Preview
+
+The CodeLens dashboard provides a visual overview of API traffic, request outcomes, and service monitoring.
+
+![CodeLens Dashboard](docs/images/dashboard.png)
+
+**Dashboard highlights**
+- Total, allowed, and rejected request metrics.
+- Request traffic visualizations.
+- Service health status.
+- Rate-limiter monitoring and operational visibility.
 
 ## Architecture
 
@@ -114,7 +126,7 @@ JWT_SECRET=replace_with_a_strong_random_secret
 DB_PASSWORD=your_database_password
 ```
 
-Use your existing database credentials when working with initialized databases. Configure a strong JWT signing secret appropriate for your environment.
+Use credentials consistent with your initialized databases and environment configuration.
 
 **Never commit `.env` or real credentials to Git.** The root `.gitignore` excludes `.env`.
 
@@ -163,6 +175,8 @@ Use the local URL printed by Vite to open the dashboard.
 
 ### 5. Build the Frontend
 
+From the `frontend` directory:
+
 ```powershell
 npm run build
 ```
@@ -178,6 +192,9 @@ API_GATEWAY/
 ├── product-service/  # Product service
 ├── order-service/    # Order service
 ├── frontend/         # React dashboard
+├── docs/
+│   └── images/
+│       └── dashboard.png
 ├── docker-compose.yml
 ├── prometheus.yml
 ├── .gitignore
@@ -212,8 +229,13 @@ CodeLens is currently a development and demonstration project. Before production
 
 ## Future Improvements
 
-- Add architecture and dashboard screenshots.
+- Add more architecture and monitoring screenshots.
 - Optimize frontend bundle splitting.
 - Document exact API request and response examples.
 - Add automated build and continuous integration workflows.
+- Add automated tests for gateway routing, authentication, and rate limiting.
 - Improve production deployment and observability configuration.
+
+---
+
+**CodeLens** — demonstrating API gateway design, distributed rate limiting, microservices, and application observability.
