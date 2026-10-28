@@ -1,80 +1,157 @@
-﻿# CodeLens — API Gateway and Rate Limiting Platform
+﻿# CodeLens — API Gateway & Redis Rate Limiting Platform
 
-CodeLens is a containerized microservices project demonstrating centralized API routing, JWT authentication, Redis-backed rate limiting, PostgreSQL persistence, and Prometheus monitoring.
+A containerized microservices platform built with **Java, Spring Boot, Spring Cloud Gateway, Redis, PostgreSQL, and React**. CodeLens demonstrates centralized API routing, JWT-based authentication, distributed rate-limit state, service separation, and application monitoring.
 
-## Technology Stack
+## Overview
 
-- Java and Spring Boot
-- Spring Cloud Gateway
-- JWT authentication
-- Redis rate limiting
-- PostgreSQL
-- React, Vite, Tailwind CSS, Recharts
-- Docker Compose
-- Prometheus and Spring Boot Actuator
+CodeLens provides a single entry point for requests to multiple backend services. The gateway handles request routing and authentication, while Redis stores rate-limit state. Separate services manage users, products, and orders, each with its own PostgreSQL database.
+
+### Key Features
+
+- **Centralized API Gateway:** Route requests to backend microservices through Spring Cloud Gateway.
+- **JWT Authentication:** Validate JWT-based authentication at the gateway.
+- **Redis-backed Rate Limiting:** Track request counts using Redis and atomic Lua-based operations.
+- **Per-client Rate Limits:** Use authenticated usernames for user-specific limits and client IP addresses for unauthenticated requests.
+- **HTTP 429 Responses:** Reject requests when the configured rate limit is exceeded.
+- **Microservices Architecture:** Keep user, product, and order functionality in separate services.
+- **Monitoring:** Integrate Spring Boot Actuator and Prometheus metrics.
+- **Interactive Dashboard:** React-based frontend with service status, metrics, and charts.
 
 ## Architecture
 
-The React frontend communicates with the API Gateway on port 8080. The gateway routes requests to three backend services:
+```mermaid
+flowchart TD
+    Client[Client / Browser] --> Frontend[React Dashboard]
+    Frontend --> Gateway[Spring Cloud Gateway :8080]
 
-| Gateway route | Service | Port |
-|---|---|---:|
-| `/api/users/**` | User Service | 8081 |
-| `/api/products/**` | Product Service | 8082 |
-| `/api/orders/**` | Order Service | 8083 |
+    Gateway --> Auth[JWT Authentication]
+    Gateway --> Limiter[Redis Rate Limiter]
+    Gateway --> Users[User Service :8081]
+    Gateway --> Products[Product Service :8082]
+    Gateway --> Orders[Order Service :8083]
 
-The gateway removes the `/api` prefix before forwarding requests.
+    Users --> UsersDB[(PostgreSQL - Users)]
+    Products --> ProductsDB[(PostgreSQL - Products)]
+    Orders --> OrdersDB[(PostgreSQL - Orders)]
 
-Each backend service has its own PostgreSQL database. Redis stores rate-limit state, and Prometheus is available on port 9090.
+    Gateway --> Metrics[Actuator / Prometheus Metrics]
+    Metrics --> Prometheus[Prometheus :9090]
+```
 
-## Features
+### Request Flow
 
-- Centralized routing through Spring Cloud Gateway.
-- JWT-based request authentication.
-- Redis-backed rate limiting.
-- Per-user rate-limit keys for authenticated requests and IP-based keys for unauthenticated requests.
-- Configurable rate limit: 5 requests per 60 seconds in the current configuration.
-- HTTP 429 responses when the configured limit is exceeded.
-- Independent user, product, and order services.
-- Containerized development environment and monitoring configuration.
+1. A client sends a request to the API Gateway.
+2. The gateway applies JWT authentication according to the configured security rules.
+3. The rate limiter identifies the client and checks the Redis-backed request counter.
+4. Allowed requests are routed to the appropriate backend service.
+5. Requests exceeding the configured limit receive HTTP `429 Too Many Requests`.
+6. Application metrics are exposed for monitoring.
 
-## Prerequisites
+## Technology Stack
+
+| Layer | Technologies |
+|---|---|
+| Backend | Java, Spring Boot |
+| API Gateway | Spring Cloud Gateway |
+| Authentication | JWT |
+| Rate Limiting | Redis, atomic Lua operations |
+| Databases | PostgreSQL |
+| Frontend | React, Vite, Tailwind CSS, Recharts |
+| Infrastructure | Docker, Docker Compose |
+| Monitoring | Prometheus, Spring Boot Actuator |
+
+## Services and Ports
+
+| Component | Port | Purpose |
+|---|---:|---|
+| API Gateway | `8080` | Central request entry point |
+| User Service | `8081` | User and authentication operations |
+| Product Service | `8082` | Product operations |
+| Order Service | `8083` | Order operations |
+| Redis | `6379` | Rate-limit state |
+| Prometheus | `9090` | Metrics monitoring |
+| Users PostgreSQL | `5433` on host | User database |
+| Products PostgreSQL | `5434` on host | Product database |
+| Orders PostgreSQL | `5435` on host | Order database |
+
+## Rate Limiting
+
+The current development configuration allows **5 requests per 60-second window** for each rate-limit key.
+
+- Authenticated requests are keyed by username.
+- Unauthenticated requests are keyed by client IP.
+- Redis maintains the request counter.
+- Requests beyond the configured limit are rejected with HTTP `429`.
+
+The implementation uses atomic Redis operations to update request counts. Rate-limit behavior has been manually verified in the development environment, including separate limits for different authenticated users.
+
+## API Routes
+
+The gateway uses the following route prefixes:
+
+| Gateway route | Backend |
+|---|---|
+| `/api/users/**` | User Service |
+| `/api/products/**` | Product Service |
+| `/api/orders/**` | Order Service |
+
+The gateway removes the `/api` prefix before forwarding requests. Exact endpoint paths and authorization requirements depend on the individual service and gateway configuration.
+
+## Getting Started
+
+### Prerequisites
 
 - Docker Desktop with Docker Compose
-- Node.js and npm for the frontend
+- Node.js and npm for frontend development
 - Java and Maven if building backend services locally
 
-## Configuration and Security
+### 1. Configure Environment Variables
 
-The root `.env` file supplies `JWT_SECRET` to the gateway and User Service through Docker Compose.
+Create a local `.env` file in the project root. Configure the variables required by Docker Compose, including:
 
-Keep `.env` private. Never commit real secrets, tokens, or database credentials. Configure service URLs and database credentials through environment variables.
+```dotenv
+JWT_SECRET=replace_with_a_strong_random_secret
+DB_PASSWORD=your_database_password
+```
 
-The current project is intended for development and demonstration. Review authentication, Actuator exposure, database migrations, HTTPS, and deployment settings before production use.
+Use your existing database credentials when working with initialized databases. Configure a strong JWT signing secret appropriate for your environment.
 
-## Start the Backend Stack
+**Never commit `.env` or real credentials to Git.** The root `.gitignore` excludes `.env`.
 
-Run these commands from the project root:
+### 2. Start the Backend Stack
+
+From the project root:
 
 ```powershell
 docker compose up -d --build
+```
+
+Check container status:
+
+```powershell
 docker compose ps
 ```
 
-View service logs:
+Inspect service logs when troubleshooting:
 
 ```powershell
 docker compose logs --tail 100 gateway
 docker compose logs --tail 100 user-service
+docker compose logs --tail 100 product-service
+docker compose logs --tail 100 order-service
 ```
 
-Check gateway health:
+### 3. Check Gateway Health
 
 ```powershell
 Invoke-RestMethod http://localhost:8080/actuator/health
 ```
 
-## Start the Frontend
+The endpoint's availability depends on the configured Actuator exposure and runtime status.
+
+### 4. Start the Frontend
+
+Open a separate terminal:
 
 ```powershell
 cd frontend
@@ -82,36 +159,61 @@ npm install
 npm run dev
 ```
 
-Create a production build:
+Use the local URL printed by Vite to open the dashboard.
+
+### 5. Build the Frontend
 
 ```powershell
 npm run build
 ```
 
-The frontend production build has completed successfully. Vite reported a large JavaScript chunk warning, which can be optimized later.
-
-## Monitoring
-
-Prometheus is mapped to port 9090. The gateway configuration exposes Actuator health, info, metrics, and Prometheus endpoints. Actual endpoint availability depends on runtime configuration.
+The production build has completed successfully in the development environment. Vite reported a large JavaScript chunk warning that may be addressed through later bundle optimization.
 
 ## Project Structure
 
 ```text
 API_GATEWAY/
-├── gateway/
-├── user-service/
-├── product-service/
-├── order-service/
-├── frontend/
+├── gateway/          # API gateway, JWT security, rate limiting, metrics
+├── user-service/     # User service
+├── product-service/  # Product service
+├── order-service/    # Order service
+├── frontend/         # React dashboard
 ├── docker-compose.yml
 ├── prometheus.yml
-├── .env
 ├── .gitignore
 └── README.md
 ```
 
 ## Verification Status
 
-JWT authentication and Redis rate-limit isolation have been manually verified in the development environment. The frontend production build succeeds.
+The following have been verified in the development environment:
 
-Further production hardening, complete endpoint documentation, and deployment configuration remain future improvements.
+- JWT authentication behavior at the gateway.
+- Redis rate limiting and isolation between authenticated users.
+- HTTP `429` responses after the configured request limit is exceeded.
+- Docker Compose configuration validation.
+- Successful frontend production build.
+- Git repository setup and source-code publication.
+
+These checks do not establish production readiness or a production deployment.
+
+## Security and Production Considerations
+
+CodeLens is currently a development and demonstration project. Before production use, review:
+
+- JWT secret management and token lifecycle.
+- Authentication and authorization rules for every route.
+- Rate-limit behavior behind reverse proxies and load balancers.
+- Actuator and Prometheus endpoint access controls.
+- HTTPS, CORS, and network security.
+- PostgreSQL credential management and database migrations.
+- Redis availability, persistence, and failure behavior.
+- Frontend bundle size and production deployment configuration.
+
+## Future Improvements
+
+- Add architecture and dashboard screenshots.
+- Optimize frontend bundle splitting.
+- Document exact API request and response examples.
+- Add automated build and continuous integration workflows.
+- Improve production deployment and observability configuration.
