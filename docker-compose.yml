@@ -1,0 +1,101 @@
+
+services:
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: codelens-gateway
+    image: codelens-gateway:latest
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      USER_SERVICE_URL: http://user-service:8081
+      PRODUCT_SERVICE_URL: http://product-service:8082
+      ORDER_SERVICE_URL: http://order-service:8083
+      USER_SERVICE_HEALTH_URL: http://user-service:8081/actuator/health
+      PRODUCT_SERVICE_HEALTH_URL: http://product-service:8082/actuator/health
+      ORDER_SERVICE_HEALTH_URL: http://order-service:8083/actuator/health
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      PROMETHEUS_URL: http://prometheus:9090
+    ports:
+      - "8080:8080"
+
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    image: codelens-user-service:latest
+    container_name: codelens-user-service
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      DB_URL: jdbc:postgresql://postgres:5432/codelens_users
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "8081:8081"
+
+  product-service:
+    image: codelens-product-service:latest
+    container_name: codelens-product-service
+    ports:
+      - "8082:8082"
+    environment:
+      DB_URL: jdbc:postgresql://product-postgres:5432/codelens_products
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+
+  order-service:
+    image: codelens-order-service:latest
+    container_name: codelens-order-service
+    ports:
+      - "8083:8083"
+    environment:
+      DB_URL: jdbc:postgresql://order-postgres:5432/codelens_orders
+      DB_USERNAME: postgres
+      DB_PASSWORD: ${DB_PASSWORD}
+      PRODUCT_SERVICE_URL: http://product-service:8082
+
+  redis:
+    image: redis:latest
+    container_name: codelens-redis
+    ports:
+      - "6379:6379"
+
+  postgres:
+    image: postgres:17
+    container_name: codelens-postgres
+    environment:
+      POSTGRES_DB: codelens_users
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5433:5432"
+
+  product-postgres:
+    image: postgres:17
+    container_name: codelens-product-postgres
+    environment:
+      POSTGRES_DB: codelens_products
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5434:5432"
+
+  order-postgres:
+    image: postgres:17
+    container_name: codelens-order-postgres
+    environment:
+      POSTGRES_DB: codelens_orders
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "5435:5432"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: codelens-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    restart: unless-stopped

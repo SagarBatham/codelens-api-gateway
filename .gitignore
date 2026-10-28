@@ -1,0 +1,30 @@
+﻿# Secrets and local environment
+.env
+.env.*
+!.env.example
+
+# Java / Maven build output
+**/target/
+*.class
+*.log
+
+# Node / Vite
+**/node_modules/
+**/dist/
+**/coverage/
+npm-debug.log*
+
+# IDE and operating system
+.vscode/
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Local backups
+*.backup
+docker-compose.yml.backup
+
+# Local runtime data
+data/
+logs/
